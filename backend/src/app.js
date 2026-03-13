@@ -1,0 +1,69 @@
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
+
+import { env } from './config/env.js';
+import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
+
+// Route Definitions
+import authRoutes from './routes/authRoutes.js';
+import rideRoutes from './routes/rideRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+
+const app = express();
+
+// Security Middlewares
+app.use(helmet());
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            // Allow all origins (reflecting the exact origin) to bypass '*' restriction with credentials
+            if (!origin || env.clientUrl === '*' || origin.includes('localhost') || origin === env.clientUrl) {
+                callback(null, true);
+            } else {
+                callback(null, origin); // Reflect true origin
+            }
+        },
+        credentials: true,
+    })
+);
+
+// Logging
+if (env.nodeEnv === 'development') {
+    app.use(morgan('dev'));
+}
+
+// Request parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Rate Limiter
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
+
+// Routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/rides', rideRoutes);
+app.use('/api/v1/bookings', bookingRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/payments', paymentRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+    res.status(200).json({ status: 'OK', uptime: process.uptime() });
+});
+
+// Error Handling Middlewares
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+export default app;
