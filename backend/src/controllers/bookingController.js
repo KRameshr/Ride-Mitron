@@ -6,7 +6,7 @@ export const requestBooking = async (req, res, next) => {
     try {
         const { rideId, seatsRequested } = req.body;
 
-        const ride = await Ride.findById(rideId);
+        const ride = await Ride.findById(rideId).lean();
         if (!ride) return res.status(404).json({ message: 'Ride not found' });
 
         if (ride.availableSeats < seatsRequested) {
@@ -71,12 +71,16 @@ export const respondToBooking = async (req, res, next) => {
 export const getMyRequests = async (req, res, next) => {
     try {
         // Requests sent by user
-        const passengerRequests = await RideRequest.find({ passenger: req.user._id }).populate('ride');
+        const passengerRequests = await RideRequest.find({ passenger: req.user._id })
+            .populate('ride')
+            .lean();
 
         // Requests received as driver
-        const myRides = await Ride.find({ driver: req.user._id }).select('_id');
+        const myRides = await Ride.find({ driver: req.user._id }).select('_id').lean();
         const rideIds = myRides.map(r => r._id);
-        const driverRequests = await RideRequest.find({ ride: { $in: rideIds } }).populate('passenger', 'name rating');
+        const driverRequests = await RideRequest.find({ ride: { $in: rideIds } })
+            .populate('passenger', 'name rating')
+            .lean();
 
         res.status(200).json({
             asPassenger: passengerRequests,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import { adminAPI } from '../api/apiRoutes';
 import Loader from '../components/Loader';
 import { 
@@ -6,6 +6,34 @@ import {
     TrendingUp, MapPin, CreditCard, ShieldAlert, CheckCircle2, 
     XCircle, Clock, Search, Filter, Download
 } from 'lucide-react';
+
+// Memoized MetricCard to prevent expensive re-renders
+const MetricCard = memo(({ title, value, icon, trend, color }) => {
+    const colors = {
+        blue: 'bg-blue-50 text-blue-600 border-blue-100',
+        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+        purple: 'bg-purple-50 text-purple-600 border-purple-100',
+        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100'
+    };
+
+    return (
+        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1 transition-all group">
+            <div className="flex justify-between items-start mb-6">
+                <div className={`p-4 rounded-2xl border ${colors[color]} group-hover:scale-110 transition-transform`}>
+                    {icon}
+                </div>
+                <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1">
+                        <TrendingUp className="w-2.5 h-2.5" /> {trend}
+                    </span>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">v.1.0.4</p>
+                </div>
+            </div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{title}</p>
+            <h3 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{value}</h3>
+        </div>
+    );
+});
 
 export default function AdminPanel() {
     const [stats, setStats] = useState(null);
@@ -24,11 +52,7 @@ export default function AdminPanel() {
     });
     const [blockPhone, setBlockPhone] = useState('');
 
-    useEffect(() => {
-        fetchData();
-    }, []);
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             const statsRes = await adminAPI.getStats();
             setStats(statsRes.data);
@@ -48,9 +72,13 @@ export default function AdminPanel() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const handleUpdateConfig = async (e) => {
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleUpdateConfig = useCallback(async (e) => {
         e.preventDefault();
         setUpdating(true);
         try {
@@ -69,9 +97,9 @@ export default function AdminPanel() {
         } finally {
             setUpdating(false);
         }
-    };
+    }, [pricingForm, fetchData]);
 
-    const handleBlockUser = async (e) => {
+    const handleBlockUser = useCallback(async (e) => {
         e.preventDefault();
         try {
             await adminAPI.blockUser({ phoneNumber: blockPhone });
@@ -81,7 +109,18 @@ export default function AdminPanel() {
         } catch (err) {
             alert('Failed to update user: ' + (err.response?.data?.message || err.message));
         }
-    };
+    }, [blockPhone, fetchData]);
+
+    // Optimized filtering using useMemo
+    const filteredUsers = useMemo(() => {
+        if (!stats?.recentUsers) return [];
+        if (!searchTerm) return stats.recentUsers;
+        const lowTerm = searchTerm.toLowerCase();
+        return stats.recentUsers.filter(u => 
+            u.name.toLowerCase().includes(lowTerm) || 
+            u.phoneNumber.includes(lowTerm)
+        );
+    }, [stats?.recentUsers, searchTerm]);
 
     if (loading) return <Loader />;
 
@@ -182,12 +221,12 @@ export default function AdminPanel() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-50">
-                                    {stats?.recentUsers?.map((user) => (
+                                    {filteredUsers.map((user) => (
                                         <tr key={user._id} className="group hover:bg-slate-50 transition-colors">
                                             <td className="py-5 px- group-hover:px-2 transition-all">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-slate-600 border border-slate-200">
-                                                        {user.name[0]}
+                                                        {user.name?.[0]}
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-extrabold text-slate-900">{user.name}</p>
@@ -243,9 +282,9 @@ export default function AdminPanel() {
                                             <div className="w-3 h-3 rounded-full bg-indigo-500"></div>
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-black text-white truncate">{ride.origin.name}</p>
+                                            <p className="text-sm font-black text-white truncate">{ride.origin?.name}</p>
                                             <p className="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">{ride.distanceKm} KM · {ride.vehicleType}</p>
-                                            <p className="text-sm font-black text-indigo-400 mt-1 truncate">{ride.destination.name}</p>
+                                            <p className="text-sm font-black text-indigo-400 mt-1 truncate">{ride.destination?.name}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between sm:justify-end gap-10 w-full sm:w-auto">
@@ -386,33 +425,6 @@ export default function AdminPanel() {
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-function MetricCard({ title, value, icon, trend, color }) {
-    const colors = {
-        blue: 'bg-blue-50 text-blue-600 border-blue-100',
-        indigo: 'bg-indigo-50 text-indigo-600 border-indigo-100',
-        purple: 'bg-purple-50 text-purple-600 border-purple-100',
-        emerald: 'bg-emerald-50 text-emerald-600 border-emerald-100'
-    };
-
-    return (
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-xl hover:-translate-y-1 transition-all group">
-            <div className="flex justify-between items-start mb-6">
-                <div className={`p-4 rounded-2xl border ${colors[color]} group-hover:scale-110 transition-transform`}>
-                    {icon}
-                </div>
-                <div className="flex flex-col items-end">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-50 px-2 py-1 rounded-full flex items-center gap-1">
-                        <TrendingUp className="w-2.5 h-2.5" /> {trend}
-                    </span>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-2">v.1.0.4</p>
-                </div>
-            </div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">{title}</p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tighter leading-none">{value}</h3>
         </div>
     );
 }

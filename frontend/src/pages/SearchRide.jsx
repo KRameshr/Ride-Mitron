@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { rideAPI } from '../api/apiRoutes';
 import RideCard from '../components/RideCard';
+import useDebounce from '../hooks/useDebounce';
 import { Search, MapPin, Navigation, Calendar as CalendarIcon, Filter, Globe, Zap, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function SearchRide() {
@@ -14,23 +15,50 @@ export default function SearchRide() {
         date: new Date().toISOString().split('T')[0]
     });
 
-    const handleChange = (e) => {
-        setSearchParams({ ...searchParams, [e.target.name]: e.target.value });
-    };
+    // Debounce the entire search params
+    const debouncedParams = useDebounce(searchParams, 800);
 
-    const handleSearch = async (e) => {
-        e.preventDefault();
+    const handleChange = useCallback((e) => {
+        const { name, value } = e.target;
+        setSearchParams(prev => ({ ...prev, [name]: value }));
+    }, []);
+
+    const performSearch = useCallback(async (params) => {
         setLoading(true);
         setHasSearched(true);
         try {
-            const { data } = await rideAPI.searchRides(searchParams);
+            const { data } = await rideAPI.searchRides(params);
             setRides(data);
         } catch (error) {
             console.error("Search failed", error);
         } finally {
             setLoading(false);
         }
+    }, []);
+
+    const handleFormSubmit = (e) => {
+        e.preventDefault();
+        performSearch(searchParams);
     };
+
+    // Auto-search on debounced params if they change (optional "live" feel)
+    useEffect(() => {
+        if (hasSearched) {
+            performSearch(debouncedParams);
+        }
+    }, [debouncedParams, performSearch, hasSearched]);
+
+    const rideList = useMemo(() => {
+        return rides.map((ride, index) => (
+            <div 
+                key={ride._id} 
+                className="animate-slide-up will-change-transform" 
+                style={{ animationDelay: `${Math.min(index * 0.05, 0.5)}s` }}
+            >
+                <RideCard ride={ride} />
+            </div>
+        ));
+    }, [rides]);
 
     return (
         <div className="w-full relative min-h-screen flex flex-col items-center">
@@ -59,7 +87,7 @@ export default function SearchRide() {
 
             {/* High-End Search Console */}
             <div className="max-w-6xl w-full mx-auto px-4 -mt-36 relative z-20 mb-20 animate-slide-up">
-                <form onSubmit={handleSearch} className="glass-panel !p-3 sm:!p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch shadow-3xl border-white/40">
+                <form onSubmit={handleFormSubmit} className="glass-panel !p-3 sm:!p-4 grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch shadow-3xl border-white/40">
 
                     <div className="md:col-span-4 flex items-center bg-white/40 border border-slate-100 rounded-[2rem] px-6 py-4 group focus-within:ring-4 focus-within:ring-primary-500/10 focus-within:bg-white transition-all">
                         <MapPin className="text-slate-400 group-focus-within:text-primary-500 w-7 h-7 mr-4 shrink-0 transition-all group-focus-within:scale-110" />
@@ -133,11 +161,7 @@ export default function SearchRide() {
                 )}
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {rides.map(ride => (
-                        <div key={ride._id} className="animate-slide-up" style={{ animationDelay: `${rides.indexOf(ride) * 0.1}s` }}>
-                            <RideCard ride={ride} />
-                        </div>
-                    ))}
+                    {rideList}
                 </div>
             </div>
         </div>

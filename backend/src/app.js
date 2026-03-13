@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 
 import { env } from './config/env.js';
 import { errorHandler, notFoundHandler } from './middleware/errorMiddleware.js';
@@ -16,30 +17,16 @@ import paymentRoutes from './routes/paymentRoutes.js';
 
 const app = express();
 
-// Security Middlewares
+app.use(compression());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors()); // Enable CORS for all routes
 app.use(helmet());
-app.use(
-    cors({
-        origin: function (origin, callback) {
-            // Allow all origins (reflecting the exact origin) to bypass '*' restriction with credentials
-            if (!origin || env.clientUrl === '*' || origin.includes('localhost') || origin === env.clientUrl) {
-                callback(null, true);
-            } else {
-                callback(null, origin); // Reflect true origin
-            }
-        },
-        credentials: true,
-    })
-);
 
 // Logging
 if (env.nodeEnv === 'development') {
     app.use(morgan('dev'));
 }
-
-// Request parsing
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
 // Rate Limiter
 const apiLimiter = rateLimit({

@@ -6,13 +6,17 @@
   body {
     @apply bg-transparent text-slate-900 font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    /* Hardware acceleration for body scroll */
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
   }
 }
 
 @layer components {
   .auth-card {
-    @apply bg-white/80 backdrop-blur-3xl p-8 sm:p-12 rounded-[2.5rem] border border-white/20 w-full max-w-md mx-auto relative;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+    @apply bg-white/95 backdrop-blur-md p-8 sm:p-12 rounded-[2.5rem] border border-white/20 w-full max-w-md mx-auto relative;
+    box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+    will-change: transform, opacity;
   }
 
   .input-field {
@@ -20,72 +24,96 @@
   }
 
   .btn-primary {
-    @apply w-full bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl hover:scale-[1.02] hover:-translate-y-1 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none shadow-xl shadow-indigo-600/20 active:scale-95;
+    @apply w-full bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-700 hover:to-indigo-700 text-white font-black py-4 px-6 rounded-2xl transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-indigo-600/10 active:scale-95;
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .btn-secondary {
-    @apply w-full bg-slate-50 hover:bg-white text-slate-700 font-bold py-4 px-6 rounded-2xl border border-slate-200 hover:-translate-y-1 shadow-sm hover:shadow-md transition-all duration-300 active:scale-95;
+    @apply w-full bg-slate-50 hover:bg-white text-slate-700 font-bold py-4 px-6 rounded-2xl border border-slate-200 shadow-sm transition-all duration-300 active:scale-95;
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .glass-panel {
-    @apply bg-white/70 backdrop-blur-2xl rounded-[2.5rem] border border-white/40 p-8 hover:-translate-y-1 transition-all duration-300;
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
+    @apply bg-white/90 backdrop-blur-md rounded-[2.5rem] border border-white/40 p-8 transition-all duration-300;
+    box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.03);
+    will-change: transform;
+    transform: translateZ(0);
   }
 
   .glass-panel:hover {
-    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.1);
+    @apply -translate-y-1;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
   }
 
   .premium-shadow {
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.05),
-                0 20px 25px -5px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
   }
 }
 
 @keyframes float {
-  0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-  100% { transform: translateY(0px); }
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -8px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 
 .animate-float {
   animation: float 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes orbit {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(360deg); }
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: -1;
+  opacity: 0.12;
+  animation: orbit 30s linear infinite;
+  will-change: transform;
 }
 
 @keyframes shine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% { transform: skewX(-25deg) translate3d(-150%, 0, 0); }
+  100% { transform: skewX(-25deg) translate3d(150%, 0, 0); }
 }
 
 .shine-effect {
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
 }
 
 .shine-effect::after {
   content: "";
   position: absolute;
   top: 0;
-  left: -100%;
+  left: 0;
   width: 50%;
   height: 100%;
   background: linear-gradient(
     to right,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.4) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  transform: skewX(-25deg);
-  animation: shine 3s infinite;
+  animation: shine 4s infinite linear;
+  pointer-events: none;
 }
 
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(30px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate3d(0, 20px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 .animate-slide-up {
-  animation: slide-up 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  will-change: transform, opacity;
 }
 
 @keyframes fade-in {
@@ -94,5 +122,6 @@
 }
 
 .animate-fade-in {
-  animation: fade-in 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
+  animation: fade-in 0.8s ease-out forwards !important;
+  will-change: opacity;
+}

@@ -1,7 +1,8 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, Car, Clock, ChevronRight, Zap, Target } from 'lucide-react';
 
-export default function RideCard({ ride }) {
+const RideCard = memo(({ ride }) => {
     // Format dates securely
     const rideDate = new Date(ride.startTime);
     const formattedTime = rideDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -86,4 +87,6 @@ export default function RideCard({ ride }) {
             </div>
         </div>
     );
-}
+});
+
+export default RideCard;

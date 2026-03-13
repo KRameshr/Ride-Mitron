@@ -8,8 +8,8 @@ import AdminConfig from '../models/AdminConfig.js';
 export const postRide = async (req, res, next) => {
     try {
         // Basic verification
-        const user = await User.findById(req.user._id);
-        if (!user.vehicleDetails || !user.vehicleDetails.hasVehicle) {
+        const user = await User.findById(req.user._id).lean();
+        if (!user || !user.vehicleDetails || !user.vehicleDetails.hasVehicle) {
             return res.status(403).json({ message: 'Must add vehicle details to post a ride' });
         }
 
@@ -39,7 +39,7 @@ export const postRide = async (req, res, next) => {
         let costPerSeat = 0; // Rider Cost
 
         if (distanceKm > 0) {
-            const config = await AdminConfig.findOne() || { petrolPrice: 100, dieselPrice: 90, riderMinFee: 15, riderPercentage: 10, driverMinFee: 10, driverPercentage: 5 };
+            const config = await AdminConfig.findOne().sort({ createdAt: -1 }).lean() || { petrolPrice: 100, dieselPrice: 90, riderMinFee: 15, riderPercentage: 10, driverMinFee: 10, driverPercentage: 5 };
             const mileageToUse = user.vehicleDetails.mileage || 15;
             const hasDiesel = user.vehicleDetails.fuelType === 'diesel';
             const priceToUse = hasDiesel ? config.dieselPrice : config.petrolPrice;
@@ -134,7 +134,7 @@ export const searchRides = async (req, res, next) => {
                 $lte: new Date(endOfDay),
             },
             driver: { $ne: req.user._id } // Don't show user's own rides
-        }).populate('driver', 'name rating vehicleDetails.model');
+        }).populate('driver', 'name rating vehicleDetails.model').lean();
 
         res.status(200).json(rides);
     } catch (error) {
@@ -145,7 +145,8 @@ export const searchRides = async (req, res, next) => {
 export const getRideDetails = async (req, res, next) => {
     try {
         const ride = await Ride.findById(req.params.id)
-            .populate('driver', 'name phoneNumber rating totalRidesGiven vehicleDetails');
+            .populate('driver', 'name phoneNumber rating totalRidesGiven vehicleDetails')
+            .lean();
 
         if (!ride) {
             return res.status(404).json({ message: 'Ride not found' });

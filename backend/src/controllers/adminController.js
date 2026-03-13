@@ -1,6 +1,7 @@
 import AdminConfig from '../models/AdminConfig.js';
 import User from '../models/User.js';
 import RideRequest from '../models/RideRequest.js';
+import Ride from '../models/Ride.js';
 
 export const updatePricingConfig = async (req, res, next) => {
     try {
@@ -68,21 +69,31 @@ export const getSystemStats = async (req, res, next) => {
         const totalBookings = await RideRequest.countDocuments();
 
         // Total revenue = sum of platform fees for ACCEPTED requests
-        const completedRequests = await RideRequest.find({ status: 'ACCEPTED' }).populate('ride');
+        const completedRequests = await RideRequest.find({ status: 'ACCEPTED' })
+            .populate('ride', 'driverPlatformFee riderPlatformFee')
+            .lean();
 
         let totalRevenue = 0;
         completedRequests.forEach(req => {
             if (req.ride) {
-                // Approximate revenue calculation
                 totalRevenue += (req.ride.driverPlatformFee || 0) + (req.ride.riderPlatformFee || 0);
             }
         });
 
         // Get lists for tables
-        const recentUsers = await User.find().sort({ createdAt: -1 }).limit(10);
-        const recentRides = await Ride.find().populate('driver', 'name phoneNumber').sort({ createdAt: -1 }).limit(10);
+        const recentUsers = await User.find()
+            .select('name phoneNumber status createdAt')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
 
-        const config = await AdminConfig.findOne().sort({ createdAt: -1 });
+        const recentRides = await Ride.find()
+            .populate('driver', 'name phoneNumber')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean();
+
+        const config = await AdminConfig.findOne().sort({ createdAt: -1 }).lean();
 
         res.status(200).json({
             totalUsers,
@@ -107,7 +118,7 @@ export const getSystemStats = async (req, res, next) => {
 
 export const getAdminConfig = async (req, res, next) => {
     try {
-        const config = await AdminConfig.findOne().sort({ createdAt: -1 });
+        const config = await AdminConfig.findOne().sort({ createdAt: -1 }).lean();
         res.status(200).json(config || { 
             driverMinFee: 10, 
             riderMinFee: 15, 

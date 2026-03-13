@@ -38,4 +38,7 @@ const rideRequestSchema = new mongoose.Schema(
     }
 );
 
+rideRequestSchema.index({ ride: 1, passenger: 1 });
+rideRequestSchema.index({ passenger: 1, status: 1 });
+
 export default mongoose.model('RideRequest', rideRequestSchema);
