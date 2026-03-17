@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { bookingAPI, paymentAPI, rideAPI } from '../api/apiRoutes';
 import axiosConfig from '../api/axiosConfig';
 import Loader from '../components/Loader';
 import { Settings, CheckCircle, XCircle, Navigation, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle, History, Activity, Sparkles, ShieldCheck, MapPin, Search, ArrowRight, Clock, Star, Banknote } from 'lucide-react';
-import { Link } from 'react-router-dom';
+// redundant import removed
 
 const FeatureItem = ({ icon, title, desc, colorClass, delay }) => (
     <div 
@@ -28,18 +29,28 @@ const FeatureItem = ({ icon, title, desc, colorClass, delay }) => (
 
 export default function Dashboard() {
     const { user, login } = useAuth();
+    const [searchParams] = useSearchParams();
     const [requests, setRequests] = useState({ asPassenger: [], asDriver: [] });
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+    // Deep link handling from mobile menu
+    useEffect(() => {
+        const view = searchParams.get('view');
+        const edit = searchParams.get('edit');
+        if (view) setViewMode(view);
+        if (edit === 'true') setIsEditingProfile(true);
+    }, [searchParams]);
 
     // Profile update state
-    const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [profileData, setProfileData] = useState({
         name: user?.name || '',
         hasVehicle: user?.vehicleDetails?.hasVehicle || false,
         vehicleType: user?.vehicleDetails?.vehicleType || 'bike',
         fuelType: user?.vehicleDetails?.fuelType || 'petrol',
-        mileage: user?.vehicleDetails?.mileage || ''
+        mileage: user?.vehicleDetails?.mileage || '',
+        vehicleNumberPlate: user?.vehicleDetails?.vehicleNumberPlate || ''
     });
 
     const fetchRequests = useCallback(async () => {
@@ -143,13 +154,14 @@ export default function Dashboard() {
     const handleProfileSubmit = useCallback(async (e) => {
         e.preventDefault();
         try {
-            const { data } = await axiosConfig.put('/auth/profile', {
+            const { data } = await authAPI.updateProfile({
                 name: profileData.name,
                 vehicleDetails: {
                     hasVehicle: profileData.hasVehicle,
                     vehicleType: profileData.vehicleType,
                     fuelType: profileData.fuelType,
-                    mileage: Number(profileData.mileage)
+                    mileage: Number(profileData.mileage),
+                    vehicleNumberPlate: profileData.vehicleNumberPlate
                 }
             });
             login(data, localStorage.getItem('token'));
@@ -287,7 +299,7 @@ export default function Dashboard() {
     return (
         <div className="w-full relative min-h-screen mesh-bg selection:bg-primary-500/30">
             {/* HERO SECTION */}
-            <div className="w-full relative min-h-screen flex items-center justify-center overflow-hidden py-24 lg:py-0">
+            <div className="w-full relative h-[85vh] sm:h-[90vh] lg:min-h-screen flex items-center justify-center overflow-hidden py-12 sm:py-24 lg:py-0">
                 <div className="absolute inset-0 z-0">
                     <div className="absolute inset-0 bg-[#020617] opacity-60"></div>
                     <img src="/hero-bg.jpg" alt="Background" className="w-full h-full object-cover mix-blend-overlay brightness-50" />
@@ -410,15 +422,28 @@ export default function Dashboard() {
                                         </select>
                                     </div>
                                     <div className="space-y-4">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Energy</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Energy Matrix</label>
                                         <select value={profileData.fuelType} onChange={(e) => setProfileData({ ...profileData, fuelType: e.target.value })} className="input-field">
                                             <option value="petrol">Petrol</option>
                                             <option value="diesel">Diesel</option>
+                                            <option value="electric">Electric</option>
                                         </select>
                                     </div>
                                     <div className="space-y-4">
                                         <label className="text-[10px] font-black uppercase tracking-widest text-primary-400">Rating (KM/L)</label>
                                         <input type="number" step="0.1" value={profileData.mileage} onChange={(e) => setProfileData({ ...profileData, mileage: e.target.value })} className="input-field" required />
+                                    </div>
+                                    <div className="space-y-4 md:col-span-3 bg-white/5 p-6 rounded-2xl border border-white/5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-primary-400 ml-1">Node Identifier (Number Plate)</label>
+                                        <input 
+                                            type="text" 
+                                            value={profileData.vehicleNumberPlate} 
+                                            onChange={(e) => setProfileData({ ...profileData, vehicleNumberPlate: e.target.value.toUpperCase() })} 
+                                            className="input-field" 
+                                            placeholder="e.g., AP09AB1234"
+                                            required 
+                                        />
+                                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-2">Required for grid authentication (Min 6 characters)</p>
                                     </div>
                                 </div>
                             )}

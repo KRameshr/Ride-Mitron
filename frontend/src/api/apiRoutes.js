@@ -6,6 +6,7 @@ export const authAPI = {
     requestOTP: (data) => api.post('/auth/request-otp', data),
     verifyOTP: (data) => api.post('/auth/verify-otp', data),
     getProfile: () => api.get('/auth/profile'),
+    updateProfile: (data) => api.put('/auth/profile', data),
 };
 
 export const rideAPI = {

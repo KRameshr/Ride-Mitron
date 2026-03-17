@@ -91,24 +91,51 @@ const Navbar = () => {
                     </button>
                 </div>
 
-                {/* Mobile Menu Overlay */}
-                <div className={`absolute top-full left-0 w-full bg-slate-900/95 backdrop-blur-2xl border-t border-white/5 transition-all duration-500 ease-in-out md:hidden flex flex-col p-6 gap-3 ${isMobileMenuOpen ? 'max-h-[400px] opacity-100 py-10' : 'max-h-0 opacity-0 py-0 pointer-events-none'}`}>
-                    <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/dashboard')}>
-                        <Home className="w-4 h-4" /> Home Page
-                    </Link>
-                    <Link to="/search-ride" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/search-ride')}>
-                        <Search className="w-4 h-4" /> Discover Rides
-                    </Link>
-                    <Link to="/post-ride" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/post-ride')}>
-                        <Navigation className="w-4 h-4" /> Post Journey
-                    </Link>
-                    <div className="h-px bg-white/5 my-2"></div>
-                    <button 
-                        onClick={() => { logout(); setIsMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3 text-red-400 font-black text-[11px] uppercase tracking-[0.2em] bg-red-500/5 rounded-xl border border-red-500/10"
-                    >
-                        <LogOut className="w-4 h-4" /> Terminate Session
-                    </button>
+                {/* Mobile Menu Drawer Overlay */}
+                <div 
+                    className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] transition-opacity duration-500 md:hidden ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                ></div>
+
+                {/* Mobile Menu Sidebar */}
+                <div className={`fixed top-0 right-0 h-screen w-[280px] bg-slate-900/95 backdrop-blur-2xl border-l border-white/5 z-[200] transition-transform duration-500 ease-in-out md:hidden flex flex-col shadow-2xl ${isMobileMenuOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                    <div className="flex items-center justify-between p-6 border-b border-white/5">
+                        <span className="text-sm font-black text-white uppercase tracking-widest">Navigation</span>
+                        <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-slate-400 hover:text-white">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col p-6 gap-2">
+                        {user && (
+                            <div className="mb-6 p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white font-black">
+                                    {user.name?.charAt(0)}
+                                </div>
+                                <div className="overflow-hidden">
+                                    <p className="text-xs font-black text-white truncate uppercase tracking-tight">{user.name}</p>
+                                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Verified User</p>
+                                </div>
+                            </div>
+                        )}
+
+                        <Link to="/dashboard" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/dashboard')}>
+                            <Home className="w-4 h-4" /> Dashboard
+                        </Link>
+                        <Link to="/dashboard?view=history" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/my-rides')}>
+                            <Activity className="w-4 h-4" /> My Rides
+                        </Link>
+                        <Link to="/dashboard?edit=true" onClick={() => setIsMobileMenuOpen(false)} className={navLinkClass('/profile')}>
+                            <User className="w-4 h-4" /> My Profile
+                        </Link>
+                        <div className="h-px bg-white/5 my-4"></div>
+                        <button 
+                            onClick={() => { logout(); setIsMobileMenuOpen(false); }}
+                            className="flex items-center gap-3 px-4 py-3.5 text-red-500 font-black text-[11px] uppercase tracking-[0.2em] bg-red-500/5 hover:bg-red-500 hover:text-white rounded-xl border border-red-500/10 transition-all"
+                        >
+                            <LogOut className="w-4 h-4" /> Logout Account
+                        </button>
+                    </div>
                 </div>
             </nav>
         </header>

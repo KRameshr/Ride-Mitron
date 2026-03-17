@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { rideAPI } from '../api/apiRoutes';
+import { rideAPI, authAPI } from '../api/apiRoutes';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { MapPin, Navigation, Users, ShieldAlert, CheckCircle, Car, Globe, ArrowRight, Zap, Info, Clock } from 'lucide-react';
@@ -52,34 +52,124 @@ export default function PostRide() {
         }
     };
 
-    if (!user?.vehicleDetails?.hasVehicle) {
+    const [showVehicleForm, setShowVehicleForm] = useState(!user?.vehicleDetails?.hasVehicle);
+    const [vehicleData, setVehicleData] = useState({
+        vehicleType: 'bike',
+        fuelType: 'petrol',
+        mileage: '',
+        vehicleNumberPlate: ''
+    });
+    const { login } = useAuth();
+
+    const handleVehicleSubmit = async (e) => {
+        e.preventDefault();
+        if (vehicleData.vehicleNumberPlate.length < 6) {
+            alert("Number plate must be at least 6 characters.");
+            return;
+        }
+        setLoading(true);
+        try {
+            const { data } = await authAPI.updateProfile({
+                name: user.name,
+                vehicleDetails: {
+                    ...vehicleData,
+                    mileage: Number(vehicleData.mileage),
+                    hasVehicle: true
+                }
+            });
+            login(data, localStorage.getItem('token'));
+            setShowVehicleForm(false);
+            alert("Vehicle registered! Dispatch your journey now.");
+        } catch (error) {
+            alert(error.response?.data?.message || 'Failed to update vehicle details');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (showVehicleForm) {
         return (
-            <div className="flex justify-center items-center min-h-[80vh] px-4 animate-fade-in">
-                <div className="glass-panel p-12 max-w-lg w-full text-center relative overflow-hidden group border-amber-200">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+            <div className="flex justify-center items-center min-h-[80vh] px-4 animate-fade-in relative z-20">
+                <div className="glass-panel p-8 sm:p-12 max-w-2xl w-full relative overflow-hidden group border-primary-500/30">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-primary-500/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
                     
-                    <div className="bg-amber-50 w-24 h-24 rounded-[2.5rem] mx-auto mb-10 flex items-center justify-center border border-amber-100 shadow-xl shadow-amber-500/5 group-hover:scale-110 transition-transform duration-500">
-                        <Car className="w-12 h-12 text-amber-500" />
+                    <div className="flex items-center gap-6 mb-10">
+                        <div className="bg-primary-50 w-20 h-20 rounded-[2rem] flex items-center justify-center border border-primary-100 shadow-xl shadow-primary-500/5">
+                            <Car className="w-10 h-10 text-primary-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-900 tracking-tighter uppercase mb-1">Vehicle Asset Registration</h2>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Connect your hardware to the Mitron grid</p>
+                        </div>
                     </div>
 
-                    <h2 className="text-4xl font-black text-slate-900 mb-6 tracking-tighter uppercase">Profile Incomplete</h2>
-                    <p className="text-slate-500 font-bold mb-12 text-sm leading-relaxed uppercase tracking-widest">
-                        To dispatch a ride, your node must be registered with a vehicle asset. Please update your profile with vehicle details to proceed.
-                    </p>
+                    <form onSubmit={handleVehicleSubmit} className="space-y-8">
+                        <div className="grid sm:grid-cols-2 gap-6">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Asset Class</label>
+                                <select 
+                                    className="input-field !bg-slate-50 !text-slate-900 !border-slate-200"
+                                    value={vehicleData.vehicleType}
+                                    onChange={(e) => setVehicleData({...vehicleData, vehicleType: e.target.value})}
+                                >
+                                    <option value="bike">Motorcycle</option>
+                                    <option value="car">Car / SUV</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Energy Matrix</label>
+                                <select 
+                                    className="input-field !bg-slate-50 !text-slate-900 !border-slate-200"
+                                    value={vehicleData.fuelType}
+                                    onChange={(e) => setVehicleData({...vehicleData, fuelType: e.target.value})}
+                                >
+                                    <option value="petrol">Petrol</option>
+                                    <option value="diesel">Diesel</option>
+                                    <option value="electric">Electric</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Consumption (KM/L)</label>
+                                <input 
+                                    type="number"
+                                    step="0.1"
+                                    required
+                                    className="input-field !bg-slate-50 !text-slate-900 !border-slate-200"
+                                    placeholder="Enter mileage"
+                                    value={vehicleData.mileage}
+                                    onChange={(e) => setVehicleData({...vehicleData, mileage: e.target.value})}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Node Identifier (Number Plate)</label>
+                                <input 
+                                    type="text"
+                                    required
+                                    className="input-field !bg-slate-50 !text-slate-900 !border-slate-200"
+                                    placeholder="e.g., AP09AB1234"
+                                    value={vehicleData.vehicleNumberPlate}
+                                    onChange={(e) => setVehicleData({...vehicleData, vehicleNumberPlate: e.target.value.toUpperCase()})}
+                                />
+                            </div>
+                        </div>
 
-                    <button 
-                        onClick={() => navigate('/dashboard')} 
-                        className="btn-primary w-full tracking-[0.3em] uppercase text-xs py-6 shadow-amber-500/20"
-                    >
-                        Register Vehicle Details
-                    </button>
-                    
-                    <button 
-                        onClick={() => navigate('/dashboard')}
-                        className="mt-6 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
-                    >
-                        Back to Control Center
-                    </button>
+                        <div className="pt-4 space-y-4">
+                            <button 
+                                type="submit" 
+                                disabled={loading}
+                                className="btn-primary w-full tracking-[0.3em] uppercase text-xs py-6 shadow-primary-500/20"
+                            >
+                                {loading ? 'Synchronizing...' : 'Initialize Asset Link'}
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => navigate('/dashboard')}
+                                className="w-full text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
+                            >
+                                Back to Control Center
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         );
@@ -162,7 +252,7 @@ export default function PostRide() {
                                     <div>
                                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Locked Asset</p>
                                         <p className="font-black text-slate-900 uppercase">
-                                            {user.vehicleDetails.model || user.vehicleDetails.vehicleType} · {user.vehicleDetails.fuelType}
+                                            {user.vehicleDetails.vehicleNumberPlate || user.vehicleDetails.vehicleType} · {user.vehicleDetails.fuelType}
                                         </p>
                                     </div>
                                 </div>

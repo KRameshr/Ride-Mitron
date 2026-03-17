@@ -38,7 +38,8 @@ const userSchema = new mongoose.Schema(
         vehicleDetails: {
             hasVehicle: { type: Boolean, default: false },
             vehicleType: { type: String, enum: ['bike', 'scooty', 'car', 'auto'] },
-            fuelType: { type: String, enum: ['petrol', 'diesel'] },
+            fuelType: { type: String, enum: ['petrol', 'diesel', 'electric'] },
+            vehicleNumberPlate: String,
             number: String,
             model: String,
             mileage: Number,
