@@ -7,6 +7,49 @@ import Loader from '../components/Loader';
 import { Settings, CheckCircle, XCircle, Navigation, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle, History, Activity, Sparkles, ShieldCheck, MapPin, Search, ArrowRight, Clock, Star, Banknote } from 'lucide-react';
 // redundant import removed
 
+const StatusTicker = () => (
+    <div className="w-full bg-primary-600/10 py-3 border-b border-primary-500/10 overflow-hidden whitespace-nowrap relative z-50">
+        <div className="inline-block animate-marquee">
+            {[1, 2, 3, 4].map((i) => (
+                <span key={i} className="inline-flex items-center gap-4 mx-12">
+                    <span className="text-[8px] font-black text-primary-400 uppercase tracking-[0.4em]">● GRID STATUS: OPTIMAL</span>
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em]">NODES: 1,208</span>
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em]">SYNC: ACTIVE</span>
+                    <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em]">LATENCY: 24MS</span>
+                </span>
+            ))}
+        </div>
+    </div>
+);
+
+const LogItem = ({ time, action, desc, status }) => (
+    <div className="flex gap-4 group/log">
+        <span className="text-[8px] font-bold text-slate-600 mt-1">{time}</span>
+        <div className="flex-grow pb-4 border-l border-white/5 pl-4 relative">
+            <div className="absolute -left-[2.5px] top-1.5 w-1 h-1 rounded-full bg-white/10 group-hover/log:bg-primary-500 transition-colors"></div>
+            <p className="text-[9px] font-black text-white uppercase tracking-widest mb-1 flex items-center gap-2">
+                {action}
+                <span className={`text-[7px] px-1.5 py-0.5 rounded ${status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-primary-500/10 text-primary-500'}`}>{status}</span>
+            </p>
+            <p className="text-[9px] font-medium text-slate-500 uppercase tracking-tighter leading-none">{desc}</p>
+        </div>
+    </div>
+);
+
+const TelemetryBox = ({ label, value, icon, subtext, colorClass }) => (
+    <div className="bg-white/[0.03] border border-white/5 p-5 rounded-2xl group hover:bg-white/[0.06] transition-all duration-500 flex flex-col justify-between">
+        <div className="flex items-center justify-between mb-4">
+            <div className={`p-2 rounded-lg bg-opacity-10 ${colorClass}`}>{icon}</div>
+            <div className="w-1 h-1 rounded-full bg-white/20 group-hover:bg-primary-500 transition-colors animate-pulse"></div>
+        </div>
+        <div>
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-500 mb-1">{label}</p>
+            <h4 className="text-xl font-black text-white tracking-tighter uppercase">{value}</h4>
+            <p className="text-[7px] font-bold text-slate-600 uppercase tracking-widest mt-1">{subtext}</p>
+        </div>
+    </div>
+);
+
 const FeatureItem = ({ icon, title, desc, colorClass, delay }) => (
     <div 
         className="glass-panel group relative overflow-hidden p-6 sm:p-8 border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] transition-all duration-700 hover:-translate-y-3 flex flex-col items-start animate-slide-up"
@@ -34,6 +77,20 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+    const timeGreeting = useMemo(() => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning';
+        if (hour < 17) return 'Good Afternoon';
+        return 'Good Evening';
+    }, []);
+
+    const stats = useMemo(() => ({
+        trust: user?.rating || '5.0',
+        syncs: (requests.asPassenger?.length + requests.asDriver?.length) || 0,
+        asset: user?.vehicleDetails?.hasVehicle ? 'ACTIVE' : 'NONE',
+        efficiency: user?.vehicleDetails?.mileage ? `${user.vehicleDetails.mileage} KM/L` : '---'
+    }), [user, requests]);
 
     // Deep link handling from mobile menu
     useEffect(() => {
@@ -298,6 +355,7 @@ export default function Dashboard() {
 
     return (
         <div className="w-full relative min-h-screen mesh-bg selection:bg-primary-500/30">
+            <StatusTicker />
             {/* HERO SECTION */}
             <div className="w-full relative h-[85vh] sm:h-[90vh] lg:min-h-screen flex items-center justify-center overflow-hidden py-12 sm:py-24 lg:py-0">
                 <div className="absolute inset-0 z-0">
@@ -359,26 +417,111 @@ export default function Dashboard() {
 
             {/* CONTROL CENTER */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 pb-24 sm:pb-48">
-                <div className="glass-panel mb-16 sm:mb-24 relative overflow-hidden group !p-6 sm:!p-10 lg:!p-12">
+                <div className="glass-panel mb-16 sm:mb-24 relative overflow-hidden group !p-0">
                     <div className="absolute -right-20 -top-20 w-64 sm:w-96 h-64 sm:h-96 bg-primary-500/5 blur-[80px] sm:blur-[120px] rounded-full"></div>
                     
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 sm:gap-12 relative z-10 text-left lg:text-left">
-                        <div className="space-y-4">
-                            <div className="flex items-center gap-3 text-primary-500">
-                                <Activity className="w-4 h-4 sm:w-5 h-5" />
-                                <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.4em]">Operations Center</span>
+                    <div className="p-8 sm:p-12 lg:p-16 relative z-10 flex flex-col lg:flex-row gap-12">
+                        {/* Identity & Core Actions */}
+                        <div className="lg:w-1/3 flex flex-col justify-between space-y-12">
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3 text-primary-500">
+                                    <Activity className="w-5 h-5 animate-pulse" />
+                                    <span className="text-[10px] font-black uppercase tracking-[0.4em]">Operations Center</span>
+                                </div>
+                                <div>
+                                    <p className="text-slate-400 font-black text-xs uppercase tracking-[0.2em] mb-3">{timeGreeting},</p>
+                                    <h2 className="text-5xl sm:text-6xl font-black text-white tracking-tighter uppercase leading-none mb-4">Command<br />Panel.</h2>
+                                    <div className="h-1 w-20 bg-primary-600 rounded-full"></div>
+                                </div>
                             </div>
-                            <h2 className="text-4xl sm:text-5xl font-black text-white tracking-tighter uppercase">Command Panel</h2>
-                            <p className="text-slate-400 font-medium text-base sm:text-lg max-w-lg">Manage journey trajectory and account credentials.</p>
+
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button onClick={() => setIsEditingProfile(!isEditingProfile)} className="flex-1 bg-white/10 hover:bg-white/20 text-white py-6 px-10 rounded-2xl flex items-center justify-center gap-4 text-[11px] font-black tracking-[0.3em] uppercase border border-white/5 transition-all">
+                                    <Settings className="w-5 h-5" /> Config
+                                </button>
+                                <button onClick={() => window.location.reload()} className="w-20 h-20 rounded-2xl bg-primary-600 hover:bg-primary-500 text-white flex items-center justify-center transition-all group/zap shadow-2xl shadow-primary-900/20">
+                                    <Zap className="w-8 h-8 fill-white group-hover/zap:scale-110 transition-transform" />
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="flex flex-col xs:flex-row items-center gap-4 sm:gap-5">
-                            <button onClick={() => setIsEditingProfile(!isEditingProfile)} className="w-full xs:w-auto bg-white/10 hover:bg-white/20 text-white py-4 sm:py-6 px-8 sm:px-10 rounded-xl sm:rounded-2xl flex items-center justify-center gap-4 text-[10px] sm:text-[11px] font-black tracking-[0.3em] uppercase border border-white/5 transition-all">
-                                <Settings className="w-4 h-4 sm:w-5 h-5" /> Profile Settings
-                            </button>
-                            <button onClick={() => window.location.reload()} className="w-full xs:w-20 h-16 xs:h-20 rounded-xl sm:rounded-2xl bg-primary-600 hover:bg-primary-500 text-white flex items-center justify-center transition-all">
-                                <Zap className="w-6 h-6 sm:w-8 h-8 fill-white" />
-                            </button>
+                        {/* Neural Telemetry Deck */}
+                        <div className="lg:w-2/3 flex flex-col gap-6">
+                            <div className="bg-white/[0.02] border border-white/5 rounded-[3rem] p-8 sm:p-10 flex flex-col h-full">
+                                <div className="flex items-center justify-between mb-10">
+                                    <div className="flex items-center gap-4">
+                                        <div className="p-3 bg-primary-500/10 rounded-2xl border border-primary-500/20">
+                                            <Sparkles className="w-5 h-5 text-primary-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-[10px] font-black text-white uppercase tracking-[0.4em]">Neural Telemetry</h3>
+                                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">Real-time sync established</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                                        <span className="text-[7px] font-black text-emerald-500 uppercase tracking-widest">Grid Online</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 mb-8">
+                                    <TelemetryBox 
+                                        label="Trust Factor" 
+                                        value={stats.trust} 
+                                        icon={<Star className="w-5 h-5 text-amber-500 fill-amber-500" />} 
+                                        subtext="Global Reputation"
+                                        colorClass="text-amber-500"
+                                    />
+                                    <TelemetryBox 
+                                        label="Total Syncs" 
+                                        value={stats.syncs} 
+                                        icon={<Zap className="w-5 h-5 text-primary-500" />} 
+                                        subtext="Active Network"
+                                        colorClass="text-primary-500"
+                                    />
+                                    <TelemetryBox 
+                                        label="Asset Status" 
+                                        value={stats.asset} 
+                                        icon={<Car className="w-5 h-5 text-emerald-500" />} 
+                                        subtext={user?.vehicleDetails?.vehicleNumberPlate || "None Linked"}
+                                        colorClass="text-emerald-500"
+                                    />
+                                    <TelemetryBox 
+                                        label="Consumption" 
+                                        value={stats.efficiency} 
+                                        icon={<Fuel className="w-5 h-5 text-indigo-500" />} 
+                                        subtext="Network Average"
+                                        colorClass="text-indigo-500"
+                                    />
+                                </div>
+
+                                {/* Active Grid Logs */}
+                                <div className="flex-grow bg-black/20 border border-white/5 rounded-[2rem] p-6 lg:p-8">
+                                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/5">
+                                        <h4 className="text-[8px] font-black text-slate-500 uppercase tracking-[0.4em]">Intelligence Logs</h4>
+                                        <div className="flex gap-1">
+                                            {[1, 2, 3].map(i => <div key={i} className="w-1 h-3 bg-primary-500/20 rounded-full"></div>)}
+                                        </div>
+                                    </div>
+                                    <div className="grid sm:grid-cols-2 gap-x-12 gap-y-2">
+                                        <LogItem time="12:08" action="NEURAL_SYNC" desc="Verifying segment A-09" status="SUCCESS" />
+                                        <LogItem time="11:45" action="GRID_RELAY" desc="Node density optimal" status="INFO" />
+                                        <LogItem time="10:30" action="WALLET_LINK" desc="Split logic confirmed" status="SUCCESS" />
+                                        <LogItem time="09:12" action="AUTH_CORE" desc="Identity packet signed" status="SUCCESS" />
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 flex flex-col sm:flex-row items-center justify-between gap-6 p-6 bg-primary-600/5 border border-primary-500/10 rounded-2xl group overflow-hidden relative">
+                                    <div className="absolute right-0 top-0 w-32 h-32 bg-primary-500/10 blur-3xl -mr-16 -mt-16"></div>
+                                    <div className="relative z-10">
+                                        <p className="text-[9px] font-black text-white uppercase tracking-widest">Sync with new commuters</p>
+                                        <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Network Optimization: HIGH · Latency: 24ms</p>
+                                    </div>
+                                    <Link to="/search-ride" className="btn-primary !w-auto !py-3 !px-8 text-[9px] tracking-widest relative z-10 shadow-none">
+                                        Initiate Scan
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
