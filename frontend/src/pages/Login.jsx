@@ -269,7 +269,7 @@ export default function Login() {
                                 >
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
                                         <span className="flex items-center justify-center gap-3">
-                                            INITIALIZE ACCOUNT <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                            SIGN UP <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                                         </span>
                                     )}
                                 </button>
@@ -316,7 +316,7 @@ export default function Login() {
                                 <button type="submit" className="btn-primary group !py-5" disabled={loading}>
                                     {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : (
                                         <span className="flex items-center justify-center gap-3">
-                                            AUTHENTICATE <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                                            SIGN IN <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
                                         </span>
                                     )}
                                 </button>
@@ -334,7 +334,7 @@ export default function Login() {
                                 }}
                                 className="mt-2 text-primary-600 font-black uppercase tracking-[0.2em] text-[10px] hover:text-primary-700 hover:tracking-[0.3em] transition-all"
                             >
-                                {isSignup ? 'Access Existing Identity' : 'Initialize New Node'}
+                                {isSignup ? 'Access Existing Identity' : 'SIGN UP'}
                             </button>
                         </div>
                     </div>

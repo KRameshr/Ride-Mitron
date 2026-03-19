@@ -42,13 +42,13 @@ const Navbar = () => {
                 <div className="absolute -left-10 -top-10 w-32 h-32 bg-primary-500/10 blur-[50px] rounded-full"></div>
 
                 {/* Logo Section */}
-                <Link to="/dashboard" className="flex items-center gap-3 sm:gap-4 group relative z-10 no-underline">
+                <Link to="/dashboard" className="flex items-center gap-2 sm:gap-4 group relative z-10 no-underline">
                     <img 
                         src="/logo.png" 
                         alt="Ride Mitron Logo" 
-                        className="w-9 h-9 sm:w-11 sm:h-11 object-contain group-hover:scale-110 transition-transform flex-shrink-0 drop-shadow-lg" 
+                        className="w-8 h-8 sm:w-11 sm:h-11 object-contain group-hover:scale-110 transition-transform flex-shrink-0 drop-shadow-lg" 
                     />
-                    <span className="text-lg sm:text-xl font-black text-white tracking-tighter uppercase whitespace-nowrap">
+                    <span className="text-base sm:text-xl font-black text-white tracking-tighter uppercase whitespace-nowrap">
                         Ride <span className="text-primary-400">Mitron</span>
                     </span>
                 </Link>

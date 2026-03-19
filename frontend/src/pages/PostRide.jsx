@@ -9,10 +9,16 @@ export default function PostRide() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
+    const getNowFormatted = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0, 16);
+    };
+
     const [formData, setFormData] = useState({
         originName: '',
         destName: '',
-        startTime: '',
+        startTime: getNowFormatted(),
         totalSeats: 1,
         manualDistance: ''
     });
@@ -189,8 +195,8 @@ export default function PostRide() {
                         <div className="inline-flex items-center gap-3 bg-white/40 backdrop-blur-md border border-white/60 px-5 py-2 rounded-full mb-8 text-emerald-600 font-black uppercase tracking-[0.3em] text-[9px] shadow-sm">
                             <CheckCircle className="w-3.5 h-3.5" /> Identity Core Verified
                         </div>
-                        <h1 className="text-6xl md:text-8xl font-black text-slate-900 tracking-[-0.05em] mb-6 leading-none">
-                            DISPATCH <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-indigo-600">JOURNEY</span>
+                        <h1 className="text-5xl md:text-8xl font-black text-slate-900 tracking-[-0.05em] mb-6 leading-none">
+                            DISPATCH <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-indigo-600 uppercase">JOURNEY</span>
                         </h1>
                         <p className="text-xl text-slate-500 font-bold leading-relaxed max-w-xl">
                             Synchronize your {user.vehicleDetails.vehicleType} class asset with the Mitron grid and optimize energy split flows.
@@ -302,7 +308,7 @@ export default function PostRide() {
                                                     className={`w-full bg-white/5 border rounded-[2rem] px-8 py-5 text-sm font-black text-white focus:ring-4 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer ${isTimeApplied ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-white/10'}`} 
                                                     required 
                                                 />
-                                                <Clock className={`absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors ${isTimeApplied ? 'text-emerald-500' : 'text-slate-500'}`} />
+                                                <Clock className={`absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors pointer-events-none ${isTimeApplied ? 'text-emerald-500' : 'text-slate-500'}`} />
                                             </div>
                                             {!isTimeApplied && (
                                                 <button 

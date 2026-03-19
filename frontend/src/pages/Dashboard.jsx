@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { bookingAPI, paymentAPI, rideAPI } from '../api/apiRoutes';
+import { authAPI, bookingAPI, paymentAPI, rideAPI } from '../api/apiRoutes';
 import axiosConfig from '../api/axiosConfig';
 import Loader from '../components/Loader';
-import { Settings, CheckCircle, XCircle, Navigation, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle, History, Activity, Sparkles, ShieldCheck, MapPin, Search, ArrowRight, Clock, Star, Banknote } from 'lucide-react';
+import { Settings, CheckCircle, XCircle, Navigation, Calendar, Car, Fuel, Zap, Route, Users, Globe, UserCircle, History, Activity, Sparkles, ShieldCheck, MapPin, Search, ArrowRight, Clock, Star, Banknote, MessageCircle } from 'lucide-react';
+import AntiGravityZone from '../components/AntiGravityZone';
 // redundant import removed
 
 const StatusTicker = () => (
@@ -74,9 +76,11 @@ export default function Dashboard() {
     const { user, login } = useAuth();
     const [searchParams] = useSearchParams();
     const [requests, setRequests] = useState({ asPassenger: [], asDriver: [] });
+    const [myRides, setMyRides] = useState([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('active'); // 'active' or 'history'
     const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [activeAgzRequest, setActiveAgzRequest] = useState(null);
 
     const timeGreeting = useMemo(() => {
         const hour = new Date().getHours();
@@ -110,26 +114,30 @@ export default function Dashboard() {
         vehicleNumberPlate: user?.vehicleDetails?.vehicleNumberPlate || ''
     });
 
-    const fetchRequests = useCallback(async () => {
+    const fetchDashboardData = useCallback(async () => {
         try {
-            const { data } = await bookingAPI.getMyRequests();
-            setRequests(data);
+            const [reqRes, rideRes] = await Promise.all([
+                bookingAPI.getMyRequests(),
+                rideAPI.getMyRides()
+            ]);
+            setRequests(reqRes.data);
+            setMyRides(rideRes.data);
         } catch (error) {
-            console.error("Failed to fetch requests", error);
+            console.error("Failed to fetch dashboard data", error);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        fetchRequests();
-    }, [fetchRequests]);
+        fetchDashboardData();
+    }, [fetchDashboardData]);
 
     const handleResponse = useCallback(async (req, action) => {
         try {
             if (action === 'REJECT') {
                 await bookingAPI.respondBooking(req._id, { action });
-                fetchRequests();
+                fetchDashboardData();
                 return;
             }
 
@@ -152,7 +160,7 @@ export default function Dashboard() {
                             paymentType: 'DRIVER_FEE'
                         });
                         alert("Ride accepted successfully!");
-                        fetchRequests();
+                        fetchDashboardData();
                     } catch (err) {
                         alert("Payment verification failed.");
                     }
@@ -173,14 +181,14 @@ export default function Dashboard() {
         } catch (error) {
             alert(error.response?.data?.message || "Failed to respond");
         }
-    }, [user, fetchRequests]);
+    }, [user, fetchDashboardData]);
 
     const handleCancelRide = async (rideId) => {
         if (!window.confirm("Abort this entire journey stream?")) return;
         try {
             await rideAPI.cancelRide(rideId);
             alert("Journey terminated.");
-            fetchRequests();
+            fetchDashboardData();
         } catch (error) {
             alert(error.response?.data?.message || "Failed to cancel ride");
         }
@@ -191,7 +199,7 @@ export default function Dashboard() {
         try {
             await bookingAPI.cancelBooking(requestId);
             alert("Sync request detached.");
-            fetchRequests();
+            fetchDashboardData();
         } catch (error) {
             alert(error.response?.data?.message || "Failed to cancel request");
         }
@@ -202,7 +210,7 @@ export default function Dashboard() {
         try {
             await rideAPI.updateRideStatus(rideId, { status: 'COMPLETED' });
             alert("Ride marked as completed!");
-            fetchRequests();
+            fetchDashboardData();
         } catch (error) {
             alert(error.response?.data?.message || "Failed to complete ride");
         }
@@ -265,23 +273,38 @@ export default function Dashboard() {
                         <span className="flex items-center gap-2"><Calendar className="w-4 h-4" /> {new Date(req.createdAt).toLocaleDateString()}</span>
                         <span className="flex items-center gap-2 text-primary-400"><Users className="w-4 h-4" /> {req.seatsRequested} Seats</span>
                     </div>
-                    {req.status !== 'REJECTED' && req.status !== 'CANCELLED' && req.ride?.status === 'ACTIVE' && (
-                        <button onClick={() => handleCancelRequest(req._id)} className="text-[10px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors">
-                            Cancel Request
-                        </button>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {req.status !== 'REJECTED' && req.status !== 'CANCELLED' && (
+                            <button 
+                                onClick={() => setActiveAgzRequest(req._id)}
+                                className="flex items-center gap-2 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                                <MessageCircle className="w-4 h-4" /> Sync Hub
+                            </button>
+                        )}
+                        {req.status !== 'REJECTED' && req.status !== 'CANCELLED' && req.ride?.status === 'ACTIVE' && (
+                            <button onClick={() => handleCancelRequest(req._id)} className="text-[10px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors">
+                                Cancel
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         ));
     }, [requests.asPassenger, viewMode]);
 
     const driverList = useMemo(() => {
-        const filtered = requests.asDriver.filter(req => {
+        const activeRides = myRides.filter(ride => {
+            const isFinished = ride.status === 'COMPLETED' || ride.status === 'CANCELLED';
+            return viewMode === 'history' ? isFinished : !isFinished;
+        });
+
+        const activeRequests = requests.asDriver.filter(req => {
             const isFinished = req.ride?.status === 'COMPLETED' || req.ride?.status === 'CANCELLED' || req.status === 'REJECTED';
             return viewMode === 'history' ? isFinished : !isFinished;
         });
 
-        if (filtered.length === 0) {
+        if (activeRides.length === 0 && activeRequests.length === 0) {
             return (
                 <div className="glass-panel flex flex-col items-center justify-center text-center py-20 border-dashed border-2 border-white/10">
                     <Users className="w-12 h-12 text-slate-700 mb-5" />
@@ -289,67 +312,121 @@ export default function Dashboard() {
                 </div>
             );
         }
-        return filtered.map((req, index) => (
-            <div key={req._id} className="glass-panel animate-slide-up hover:bg-white/[0.05]" style={{ animationDelay: `${index * 0.1}s` }}>
-                <div className="flex justify-between items-center mb-8 pb-8 border-b border-white/5">
-                    <div className="flex items-center gap-4">
-                        <div className="w-16 h-16 rounded-2xl bg-primary-500/10 flex items-center justify-center text-primary-400 font-black text-2xl border border-primary-500/20">
-                            {req.passenger?.name?.charAt(0)}
-                        </div>
-                        <div>
-                            <p className="font-black text-white text-xl tracking-tight leading-none mb-2">{req.passenger?.name}</p>
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                                <span>{req.passenger?.rating || '5.0'} Trust</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Units</p>
-                        <p className="text-2xl font-black text-white tracking-tighter">{req.seatsRequested}</p>
-                    </div>
-                </div>
 
-                {req.status === 'PENDING' ? (
-                    <div className="grid grid-cols-2 gap-4">
-                        <button onClick={() => handleResponse(req, 'ACCEPT')} className="btn-primary !py-4 text-xs font-black tracking-[0.2em] uppercase">
-                            Accept Request
-                        </button>
-                        <button onClick={() => handleResponse(req, 'REJECT')} className="btn-secondary !py-4 text-xs font-black tracking-[0.2em] uppercase hover:text-red-500 hover:border-red-500/50">
-                            Reject
-                        </button>
-                    </div>
-                ) : (
+        return (
+            <div className="space-y-8">
+                {/* Active Rides Section */}
+                {activeRides.length > 0 && (
                     <div className="space-y-4">
-                        <div className={`py-4 rounded-xl text-[10px] font-black text-center uppercase tracking-[0.3em] border ${req.status === 'ACCEPTED' ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/5 text-slate-500 border-white/5'}`}>
-                            {req.status}
-                        </div>
-                        {req.status === 'ACCEPTED' && req.ride?.status === 'ACTIVE' && (
-                            <div className="flex gap-3">
-                                <button onClick={() => handleCompleteRide(req.ride._id)} className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                                    Complete
-                                </button>
-                                <button onClick={() => handleCancelRide(req.ride._id)} className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                                    Abort
-                                </button>
-                            </div>
-                        )}
-                        {req.status === 'ACCEPTED' && (
-                           <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 bg-primary-500/20 rounded-lg text-primary-400"><Navigation className="w-4 h-4" /></div>
-                                    <p className="text-sm font-bold text-white tracking-tight">{req.passenger?.phoneNumber}</p>
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Live Dispatches</p>
+                        {activeRides.map((ride, idx) => (
+                            <div key={ride._id} className="glass-panel border-l-4 border-l-primary-500 hover:bg-white/[0.05] transition-all">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <div className="text-white font-black text-xl tracking-tight flex items-center gap-2">
+                                            {ride.origin?.name?.split(',')[0]} <ArrowRight className="w-3 h-3 text-primary-500" /> {ride.destination?.name?.split(',')[0]}
+                                        </div>
+                                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                            {new Date(ride.startTime).toLocaleString()}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest bg-primary-500/10 text-primary-400 border border-primary-500/20`}>
+                                            {ride.status}
+                                        </span>
+                                    </div>
                                 </div>
-                                <a href={`tel:${req.passenger?.phoneNumber}`} className="p-2 bg-primary-600 hover:bg-primary-500 rounded-lg transition-colors text-white">
-                                    <Zap className="w-4 h-4 fill-white" />
-                                </a>
-                           </div>
-                        )}
+                                <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                    <div className="flex items-center gap-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {ride.availableSeats} Seats left</span>
+                                        <span className="flex items-center gap-1 text-primary-400"><Banknote className="w-3 h-3" /> ₹{ride.costPerSeat}/seat</span>
+                                    </div>
+                                    <button onClick={() => handleCancelRide(ride._id)} className="text-[9px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest transition-colors">
+                                        Abort Stream
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Requests Section */}
+                {activeRequests.length > 0 && (
+                    <div className="space-y-4">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Incoming Connections</p>
+                        {activeRequests.map((req, index) => (
+                            <div key={req._id} className="glass-panel animate-slide-up hover:bg-white/[0.05]" style={{ animationDelay: `${index * 0.1}s` }}>
+                                <div className="flex justify-between items-center mb-8 pb-8 border-b border-white/5">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-16 h-16 rounded-2xl bg-primary-500/10 flex items-center justify-center text-primary-400 font-black text-2xl border border-primary-500/20">
+                                            {req.passenger?.name?.charAt(0)}
+                                        </div>
+                                        <div>
+                                            <p className="font-black text-white text-xl tracking-tight leading-none mb-2">{req.passenger?.name}</p>
+                                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                                                <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                                                <span>{req.passenger?.rating || '5.0'} Trust</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Units</p>
+                                        <p className="text-2xl font-black text-white tracking-tighter">{req.seatsRequested}</p>
+                                    </div>
+                                </div>
+
+                                {req.status === 'PENDING' ? (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <button onClick={() => handleResponse(req, 'ACCEPT')} className="btn-primary !py-4 text-xs font-black tracking-[0.2em] uppercase">
+                                            Accept Request
+                                        </button>
+                                        <button onClick={() => handleResponse(req, 'REJECT')} className="btn-secondary !py-4 text-xs font-black tracking-[0.2em] uppercase hover:text-red-500 hover:border-red-500/50">
+                                            Reject
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className={`py-4 rounded-xl text-[10px] font-black text-center uppercase tracking-[0.3em] border ${req.status === 'ACCEPTED' ? 'bg-emerald-500/5 text-emerald-400 border-emerald-500/20' : 'bg-slate-500/5 text-slate-500 border-white/5'}`}>
+                                            {req.status}
+                                        </div>
+                                        {req.status === 'ACCEPTED' && req.ride?.status === 'ACTIVE' && (
+                                            <div className="flex gap-3">
+                                                <button onClick={() => handleCompleteRide(req.ride._id)} className="flex-1 py-3 bg-primary-600 hover:bg-primary-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                                    Complete
+                                                </button>
+                                                <button onClick={() => handleCancelRide(req.ride._id)} className="flex-1 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                                                    Abort
+                                                </button>
+                                            </div>
+                                        )}
+                                        {req.status === 'ACCEPTED' && (
+                                            <>
+                                            <div className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="p-2 bg-primary-500/20 rounded-lg text-primary-400"><Navigation className="w-4 h-4" /></div>
+                                                        <p className="text-sm font-bold text-white tracking-tight">{req.passenger?.phoneNumber}</p>
+                                                    </div>
+                                                    <a href={`tel:${req.passenger?.phoneNumber}`} className="p-2 bg-primary-600 hover:bg-primary-500 rounded-lg transition-colors text-white">
+                                                        <Zap className="w-4 h-4 fill-white" />
+                                                    </a>
+                                            </div>
+                                            <button 
+                                                    onClick={() => setActiveAgzRequest(req._id)}
+                                                    className="w-full mt-4 flex items-center justify-center gap-3 bg-primary-500/10 hover:bg-primary-500/20 text-primary-400 p-4 rounded-2xl text-[10px] font-black uppercase tracking-[0.3em] transition-all border border-primary-500/20"
+                                                >
+                                                    <MessageCircle className="w-5 h-5" /> Open Sync Hub
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>
-        ));
-    }, [requests.asDriver, viewMode, handleResponse]);
+        );
+    }, [requests.asDriver, myRides, viewMode, handleResponse]);
 
     if (loading) return <Loader />;
 
@@ -615,6 +692,15 @@ export default function Dashboard() {
                     </div>
                 </div>
             </div>
+
+            <AnimatePresence>
+                {activeAgzRequest && (
+                    <AntiGravityZone 
+                        requestId={activeAgzRequest} 
+                        onClose={() => setActiveAgzRequest(null)} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 }

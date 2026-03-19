@@ -2,6 +2,7 @@ import Ride from '../models/Ride.js';
 import { getDistanceMatrix, geocodeAddress } from '../services/mapsService.js';
 import { calculateRideCost } from '../services/pricingService.js';
 import User from '../models/User.js';
+import logger from '../utils/logger.js';
 
 import AdminConfig from '../models/AdminConfig.js';
 
@@ -119,6 +120,8 @@ export const postRide = async (req, res, next) => {
             costPerSeat,
         });
 
+        logger.info(`Ride Posted: ID ${newRide._id}, Origin: ${origin.name} ${origin.coordinates}, Dest: ${destination.name}`);
+
         // User update mechanics
         await User.findByIdAndUpdate(req.user._id, { $inc: { totalRidesGiven: 1 } });
 
@@ -130,50 +133,113 @@ export const postRide = async (req, res, next) => {
 
 export const searchRides = async (req, res, next) => {
     try {
-        let { originLng, originLat, destLng, destLat, originName, destName, maxDistance = 5000, date } = req.query;
+        let { originLng, originLat, destLng, destLat, originName, destName, maxDistance = 10000, date, seats = 1 } = req.query;
 
+        // Default local date if missing
+        if (!date) {
+            date = new Date().toLocaleDateString('en-CA');
+        }
+
+        // Geocode origin if only name is provided
         if ((!originLng || !originLat) && originName) {
-            const coords = await geocodeAddress(originName);
-            originLng = coords[0];
-            originLat = coords[1];
+            try {
+                const coords = await geocodeAddress(originName);
+                originLng = coords[0];
+                originLat = coords[1];
+            } catch (err) {
+                logger.error(`Failed to geocode origin: ${originName}`);
+            }
         }
 
+        // Geocode destination if only name is provided
         if ((!destLng || !destLat) && destName) {
-            const coords = await geocodeAddress(destName);
-            destLng = coords[0];
-            destLat = coords[1];
+            try {
+                const coords = await geocodeAddress(destName);
+                destLng = coords[0];
+                destLat = coords[1];
+            } catch (err) {
+                logger.error(`Failed to geocode destination: ${destName}`);
+            }
         }
 
-        if (!originLng || !originLat || (!destLng && !destLat && !destName)) {
-            return res.status(400).json({ message: 'Origin and destination coordinates or names are required' });
-        }
+        // Convert coordinates to numbers safely
+        const oLng = parseFloat(originLng);
+        const oLat = parseFloat(originLat);
+        const dLng = parseFloat(destLng);
+        const dLat = parseFloat(destLat);
 
-        // Geospatial Query using MongoDB 2dsphere index
-        const startOfDay = new Date(date).setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date).setHours(23, 59, 59, 999);
-
-        const rides = await Ride.find({
+        // Build base query
+        const query = {
             status: 'PENDING',
-            availableSeats: { $gt: 0 },
-            'origin.location': {
+            availableSeats: { $gte: parseInt(seats) || 1 }
+        };
+
+        // Date range filter
+        if (date) {
+            const searchDate = new Date(date);
+            if (!isNaN(searchDate.getTime())) {
+                const baseDate = new Date(searchDate);
+                const startOfDay = new Date(new Date(baseDate).setHours(0, 0, 0, 0));
+                const endOfDay = new Date(new Date(baseDate).setHours(23, 59, 59, 999));
+                
+                query.startTime = {
+                    $gte: startOfDay,
+                    $lte: endOfDay,
+                };
+            }
+        }
+
+        // Proximity filter for origin (2dsphere $near)
+        if (!isNaN(oLng) && !isNaN(oLat)) {
+            query['origin.location'] = {
                 $near: {
                     $geometry: {
                         type: 'Point',
-                        coordinates: [parseFloat(originLng), parseFloat(originLat)],
+                        coordinates: [oLng, oLat],
                     },
-                    $maxDistance: parseInt(maxDistance), // Max 5 km away from user intent
+                    $maxDistance: parseInt(maxDistance) || 10000,
                 },
-            },
-            startTime: {
-                $gte: new Date(startOfDay),
-                $lte: new Date(endOfDay),
-            },
-            driver: { $ne: req.user._id } // Don't show user's own rides
-        })
-        .select('origin destination startTime availableSeats vehicleType costPerSeat driver')
-        .populate('driver', 'name rating vehicleDetails.model totalRidesGiven')
-        .limit(30)
-        .lean();
+            };
+        }
+
+        // Optional Destination proximity filter
+        if (!isNaN(dLng) && !isNaN(dLat)) {
+            // MongoDB only allows ONE $near. If origin already uses $near, use $geoWithin for dest.
+            if (query['origin.location']) {
+                // Approximate radius in radians for $centerSphere
+                const radiusInRadians = (parseInt(maxDistance) || 10000) / 6378100.0; 
+                query['destination.location'] = {
+                    $geoWithin: {
+                        $centerSphere: [[dLng, dLat], radiusInRadians]
+                    }
+                };
+            } else {
+                query['destination.location'] = {
+                    $near: {
+                        $geometry: {
+                            type: 'Point',
+                            coordinates: [dLng, dLat],
+                        },
+                        $maxDistance: parseInt(maxDistance) || 10000,
+                    },
+                };
+            }
+        }
+
+        // Exclude own rides if logged in
+        if (req.user) {
+            query.driver = { $ne: req.user._id };
+        }
+
+        logger.info(`Processing Search: Origin: ${originName || 'any'}, Dest: ${destName || 'any'}, Date: ${date}, Seats: ${seats}. Query: ${JSON.stringify(query)}`);
+
+        const rides = await Ride.find(query)
+            .select('origin destination startTime availableSeats vehicleType costPerSeat driver')
+            .populate('driver', 'name rating vehicleDetails.model totalRidesGiven')
+            .limit(50)
+            .lean();
+
+        logger.info(`Search Results: Found ${rides.length} matches.`);
 
         const ridesWithStars = rides.map(r => ({
             ...r,
@@ -185,7 +251,8 @@ export const searchRides = async (req, res, next) => {
 
         res.status(200).json(ridesWithStars);
     } catch (error) {
-        next(error);
+        logger.error('Search API Error:', error);
+        res.status(500).json({ message: 'Internal server error during search optimization.' });
     }
 };
 
@@ -292,6 +359,17 @@ export const cancelRide = async (req, res, next) => {
         await RideRequest.updateMany({ ride: ride._id }, { status: 'CANCELLED' });
 
         res.status(200).json({ message: 'Ride cancelled successfully' });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getMyRides = async (req, res, next) => {
+    try {
+        const rides = await Ride.find({ driver: req.user._id })
+            .sort({ createdAt: -1 })
+            .lean();
+        res.status(200).json(rides);
     } catch (error) {
         next(error);
     }

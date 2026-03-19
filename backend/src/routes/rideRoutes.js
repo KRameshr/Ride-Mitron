@@ -4,7 +4,8 @@ import {
     searchRides,
     getRideDetails,
     updateRideStatus,
-    cancelRide
+    cancelRide,
+    getMyRides
 } from "../controllers/rideController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -17,6 +18,7 @@ Anyone can search rides and view ride details
 */
 
 router.get("/search", searchRides);
+router.get("/my-rides", protect, getMyRides);
 router.get("/:id", getRideDetails);
 
 /*

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { Users, Car, Clock, ChevronRight, Zap, Target } from 'lucide-react';
+import { Users, Car, Clock, ChevronRight, Zap, Target, Star } from 'lucide-react';
 
 const RideCard = memo(({ ride }) => {
     // Format dates securely

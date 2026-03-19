@@ -14,6 +14,7 @@ import rideRoutes from './routes/rideRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import agzRoutes from './routes/agzRoutes.js';
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api/v1/rides', rideRoutes);
 app.use('/api/v1/bookings', bookingRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/agz', agzRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

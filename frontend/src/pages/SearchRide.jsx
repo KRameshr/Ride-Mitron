@@ -1,44 +1,60 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { rideAPI } from '../api/apiRoutes';
 import RideCard from '../components/RideCard';
-import useDebounce from '../hooks/useDebounce';
-import { Search, MapPin, Navigation, Calendar as CalendarIcon, Filter, Globe, Zap, ArrowRight, Loader2, Users } from 'lucide-react';
+
+import { Search, MapPin, Navigation, Calendar as CalendarIcon, Filter, Globe, Zap, ArrowRight, Loader2, Users, AlertCircle } from 'lucide-react';
 
 export default function SearchRide() {
     const [loading, setLoading] = useState(false);
     const [rides, setRides] = useState([]);
     const [hasSearched, setHasSearched] = useState(false);
+    const [error, setError] = useState(null);
 
     const [searchParams, setSearchParams] = useState({
         originName: '',
         destName: '',
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toLocaleDateString('en-CA'), // Correct local date format
         time: '',
         seats: 1
     });
 
     const [appliedMessage, setAppliedMessage] = useState('');
 
-    // Debounce the entire search params
-    const debouncedParams = useDebounce(searchParams, 400);
 
     const handleChange = useCallback((e) => {
         const { name, value } = e.target;
         setSearchParams(prev => ({ ...prev, [name]: value }));
+        setError(null);
     }, []);
 
     const performSearch = useCallback(async (params) => {
+        // Check if required fields are provided
+        if (!params.originName || !params.destName) {
+            setError("Please provide both Pickup and Destination locations.");
+            setRides([]);
+            setHasSearched(false);
+            return;
+        }
+
         setLoading(true);
-        setHasSearched(true);
+        setError(null);
         try {
             const { data } = await rideAPI.searchRides(params);
-            setRides(data);
+            if (Array.isArray(data)) {
+                setRides(data);
+                setHasSearched(true);
+            } else {
+                setRides([]);
+                console.warn("Expected array from search, got:", data);
+            }
         } catch (error) {
             console.error("Search failed", error);
+            setError(error.response?.data?.message || "Quantum synchronization failed. Check your coordinates.");
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [hasSearched]);
+
 
     const handleFormSubmit = (e) => {
         if (e) e.preventDefault();
@@ -47,11 +63,12 @@ export default function SearchRide() {
 
     const handleApply = () => {
         performSearch(searchParams);
-        setAppliedMessage('Filters applied successfully');
+        setAppliedMessage('Vector Filters Synchronized');
         setTimeout(() => setAppliedMessage(''), 3000);
     };
 
     const rideList = useMemo(() => {
+        if (!Array.isArray(rides)) return null;
         return rides.map((ride, index) => (
             <div 
                 key={ride._id} 
@@ -64,7 +81,7 @@ export default function SearchRide() {
     }, [rides]);
 
     return (
-        <div className="w-full relative min-h-screen flex flex-col items-center">
+        <div className="w-full relative min-h-screen flex flex-col items-center bg-[#f8fafc]">
 
             {/* Futuristic Hero Section */}
             <div className="w-full bg-[#020617] text-white pt-24 pb-48 px-4 sm:px-6 relative overflow-hidden rounded-b-[4rem] sm:rounded-b-[6rem] shadow-2xl mb-10 mt-[-2rem]">
@@ -91,7 +108,7 @@ export default function SearchRide() {
             {/* High-End Search Console */}
             <div className="max-w-6xl w-full mx-auto px-4 -mt-36 relative z-20 mb-20 animate-slide-up">
                 {appliedMessage && (
-                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce">
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-full shadow-lg flex items-center gap-2 animate-bounce flex-nowrap whitespace-nowrap">
                         <Zap className="w-3 h-3 fill-white" /> {appliedMessage}
                     </div>
                 )}
@@ -145,7 +162,7 @@ export default function SearchRide() {
                             disabled={loading} 
                             className="bg-primary-600 hover:bg-primary-500 text-white rounded-full py-5 px-16 font-black text-[12px] uppercase tracking-[0.3em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-4 min-w-[300px]"
                         >
-                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>APPLY FILTERS <ArrowRight className="w-4 h-4" /></>}
+                            {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>DISPATCH QUERY <ArrowRight className="w-4 h-4" /></>}
                         </button>
                     </div>
                 </form>
@@ -154,7 +171,17 @@ export default function SearchRide() {
             {/* Results Section */}
             <div className="max-w-7xl w-full mx-auto px-6 pb-32 animate-fade-in">
 
-                {hasSearched && (
+                {error && (
+                    <div className="max-w-3xl mx-auto mb-10 bg-red-50 border border-red-100 p-6 rounded-[2rem] flex items-center gap-6 text-red-600 shadow-sm animate-shake">
+                        <div className="bg-red-100 p-4 rounded-2xl"><AlertCircle className="w-6 h-6" /></div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest mb-1">Grid Protocol Error</p>
+                            <p className="font-bold">{error}</p>
+                        </div>
+                    </div>
+                )}
+
+                {hasSearched && !error && (
                     <div className="flex items-center justify-between mb-12 px-2">
                         <div className="flex items-center gap-4">
                             <div className="w-2 h-10 bg-primary-600 rounded-full"></div>
@@ -169,7 +196,7 @@ export default function SearchRide() {
                     </div>
                 )}
 
-                {hasSearched && rides.length === 0 && !loading && (
+                {hasSearched && rides.length === 0 && !loading && !error && (
                     <div className="glass-panel p-20 flex flex-col items-center justify-center text-center max-w-3xl mx-auto shadow-2xl border-dashed border-2 bg-transparent">
                         <div className="bg-slate-50 w-24 h-24 rounded-[2.5rem] flex items-center justify-center shadow-inner mb-10 group">
                             <Globe className="w-12 h-12 text-slate-300 group-hover:text-primary-500 transition-colors group-hover:animate-spin-slow" />
@@ -189,7 +216,7 @@ export default function SearchRide() {
                 )}
 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                    {rideList}
+                    {hasSearched && !error && rideList}
                 </div>
             </div>
         </div>

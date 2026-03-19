@@ -1,0 +1,90 @@
+[
+  {
+    "_id": "69b939bb299a3b06d330596f",
+    "name": "Pavan",
+    "email": "Pavan@gmail.com",
+    "phoneNumber": "7799505689",
+    "password": "$2a$10$ovGNLX.00OdOjni5rCChLeM2nBpL6Fa5MHqvqsI420FsjU/./isr6",
+    "role": "USER",
+    "isVerified": true,
+    "vehicleDetails": {
+      "hasVehicle": true,
+      "vehicleType": "bike",
+      "fuelType": "petrol",
+      "vehicleNumberPlate": "AP31K2026",
+      "mileage": 40
+    },
+    "status": "ACTIVE",
+    "rating": 5,
+    "totalRidesGiven": 2,
+    "totalRidesTaken": 0,
+    "createdAt": "2026-03-17T11:23:39.861Z",
+    "updatedAt": "2026-03-19T11:44:22.001Z",
+    "__v": 0
+  },
+  {
+    "_id": "69b93b3b96f9c05c0fcb3197",
+    "name": "Pavan1",
+    "email": "Pavan1@gmail.com",
+    "phoneNumber": "6301440764",
+    "password": "$2a$10$4Nul3mK4.r11mXoWM0qFueSacbro7K0GOvw041/fOQuIE3TqAgN8O",
+    "role": "USER",
+    "isVerified": true,
+    "vehicleDetails": {
+      "hasVehicle": false
+    },
+    "status": "ACTIVE",
+    "rating": 5,
+    "totalRidesGiven": 0,
+    "totalRidesTaken": 0,
+    "createdAt": "2026-03-17T11:30:03.692Z",
+    "updatedAt": "2026-03-17T11:30:03.692Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ba24723027ceaee11fa766",
+    "name": "SRAVANI",
+    "email": "sravani@gmail.com",
+    "phoneNumber": "9502244200",
+    "password": "$2a$10$kHDvSUT48vLfyuBCoo/GxuffYBNDT4ZsuUnVZxBPqWnDum9NewAr2",
+    "role": "USER",
+    "isVerified": true,
+    "vehicleDetails": {
+      "hasVehicle": true,
+      "vehicleType": "car",
+      "fuelType": "diesel",
+      "vehicleNumberPlate": "AP35P2126",
+      "mileage": 20
+    },
+    "status": "ACTIVE",
+    "rating": 5,
+    "totalRidesGiven": 0,
+    "totalRidesTaken": 0,
+    "createdAt": "2026-03-18T04:05:06.077Z",
+    "updatedAt": "2026-03-18T04:06:36.798Z",
+    "__v": 0
+  },
+  {
+    "_id": "69ba794e5c729ecef7e0e230",
+    "name": "Kamal",
+    "email": "Kamal@gmail.com",
+    "phoneNumber": "7799505679",
+    "password": "$2a$10$9oa8TeUq0SqbCgQRyPFc8el2ChMOD3WDN6GIe1ntFUIDSkvOtmMkW",
+    "role": "USER",
+    "isVerified": true,
+    "vehicleDetails": {
+      "hasVehicle": true,
+      "vehicleType": "bike",
+      "fuelType": "diesel",
+      "vehicleNumberPlate": "AP35K2890",
+      "mileage": 40
+    },
+    "status": "ACTIVE",
+    "rating": 5,
+    "totalRidesGiven": 1,
+    "totalRidesTaken": 0,
+    "createdAt": "2026-03-18T10:07:10.295Z",
+    "updatedAt": "2026-03-18T10:08:33.891Z",
+    "__v": 0
+  }
+]
