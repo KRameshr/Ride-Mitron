@@ -8,7 +8,7 @@ import {
     getMyRides
 } from "../controllers/rideController.js";
 
-import { protect } from "../middleware/authMiddleware.js";
+import { protect, optionalAuth } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -17,9 +17,9 @@ Public routes
 Anyone can search rides and view ride details
 */
 
-router.get("/search", searchRides);
+router.get("/search", optionalAuth, searchRides);
 router.get("/my-rides", protect, getMyRides);
-router.get("/:id", getRideDetails);
+router.get("/:id", optionalAuth, getRideDetails);
 
 /*
 Protected routes

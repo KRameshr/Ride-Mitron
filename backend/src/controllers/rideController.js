@@ -301,25 +301,29 @@ export const getRideDetails = async (req, res, next) => {
         ride.driver.stars = calculateStars(ride.driver.totalRidesGiven || 0);
 
         // Hide driver details unless user has paid or is the driver
-        if (ride.driver._id.toString() !== req.user._id.toString()) {
-            const RideRequest = (await import('../models/RideRequest.js')).default;
-            const paidRequest = await RideRequest.findOne({
-                ride: ride._id,
-                passenger: req.user._id,
-                status: 'ACCEPTED'
-            }).lean();
+        const isSelf = req.user && ride.driver._id.toString() === req.user._id.toString();
 
-            if (!paidRequest) {
-                // Check if they just paid the fee but not yet accepted
-                const paidFee = await RideRequest.findOne({
+        if (!isSelf) {
+            let detailsUnlocked = false;
+
+            if (req.user) {
+                const RideRequest = (await import('../models/RideRequest.js')).default;
+                const paidRequest = await RideRequest.findOne({
                     ride: ride._id,
                     passenger: req.user._id,
-                    riderPaid: true
+                    $or: [
+                        { status: 'ACCEPTED' },
+                        { riderPaid: true }
+                    ]
                 }).lean();
-                
-                if (!paidFee) {
-                    ride.driver.phoneNumber = 'HIDDEN (Pay to Unlock)';
+
+                if (paidRequest) {
+                    detailsUnlocked = true;
                 }
+            }
+
+            if (!detailsUnlocked) {
+                ride.driver.phoneNumber = 'HIDDEN (Pay to Unlock)';
             }
         } else {
             // If user is driver, show accepted passengers details
@@ -328,7 +332,7 @@ export const getRideDetails = async (req, res, next) => {
                 ride: ride._id,
                 status: 'ACCEPTED'
             }).populate('passenger', 'name phoneNumber rating').lean();
-            
+
             ride.passengers = acceptedPassengers;
         }
 
