@@ -1,11 +1,11 @@
 import express from "express";
 import {
-    postRide,
-    searchRides,
-    getRideDetails,
-    updateRideStatus,
-    cancelRide,
-    getMyRides
+  postRide,
+  searchRides,
+  getRideDetails,
+  updateRideStatus,
+  cancelRide,
+  getMyRides,
 } from "../controllers/rideController.js";
 
 import { protect, optionalAuth } from "../middleware/authMiddleware.js";
